@@ -23,6 +23,8 @@ services:
       - OLLAMA_HOST=http://ollama:11434
     volumes:
       - .:/app
+      - .:/chroma_db:/app/chroma_db
+      - .:/data:/app/data
     command: >
       sh -c "
         # Attendre qu'Ollama soit prêt
@@ -33,10 +35,6 @@ services:
         echo 'Downloading models via API...'
         curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"all-minilm:latest\"}'
         curl -X POST http://ollama:11434/api/pull -d '{\"name\": \"llama3.2:1b\"}'
-
-        # Vérifier que les modèles sont téléchargés
-        echo 'Checking models...'
-        curl http://ollama:11434/api/tags
         
         # Démarrer Streamlit
         echo 'Starting Streamlit...'

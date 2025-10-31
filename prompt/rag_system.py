@@ -89,28 +89,81 @@ class RAGSystem:
             true_labels = [meta['label'] for meta in self.search_results["metadatas"][0]]
             
             if true_labels:
-                # Compter les matches avec le label prédit
-                matches = sum(1 for label in true_labels if label.lower() == predicted_label.lower())
-                base_confidence = (matches / len(true_labels)) * 100
+                # 1. Similarité sémantique
+                label_matches = 0
+                total_similarity = 0
                 
-                # Ajustement basé sur la cohérence du LLM
+                for label in true_labels:
+                    if label.lower() == predicted_label.lower():
+                        label_matches += 1
+                        total_similarity += 1.0
+                    elif (label.lower() == "true" and predicted_label.lower() == "fake") or \
+                        (label.lower() == "fake" and predicted_label.lower() == "true"):
+                        total_similarity += 0.0  # Opposition totale
+                    else:
+                        total_similarity += 0.5  # Incertain ou autres labels
+                
+                # 2. Base confidence avec pondération
+                base_confidence = (total_similarity / len(true_labels)) * 100
+                
+                # 3. Cohérence LLM avec scores variables
                 llm_confidence_indicators = {
-                    "True": ["official", "verified", "factual", "credible"],
-                    "Fake": ["sensational", "conspiracy", "unverified", "extraordinary"]
+                    "True": {
+                        "strong": ["verified", "credible", "official", "factual", "reliable", "trusted"],
+                        "medium": ["consistent", "plausible", "reasonable", "logical"],
+                        "weak": ["likely", "possible", "probable"]
+                    },
+                    "Fake": {
+                        "strong": ["sensational", "conspiracy", "fabricated", "misleading", "deceptive"],
+                        "medium": ["exaggerated", "unverified", "questionable", "dubious"], 
+                        "weak": ["possibly false", "potentially misleading", "unconfirmed"]
+                    }
                 }
                 
-                # Vérifier si la justification du LLM est cohérente
+                # 4. Score de cohérence nuancé
                 justification_lower = justification.lower()
-                coherence_bonus = 0
+                coherence_score = 0
                 
-                for indicator in llm_confidence_indicators.get(predicted_label, []):
-                    if indicator in justification_lower:
-                        coherence_bonus += 10
+                indicators = llm_confidence_indicators.get(predicted_label, {})
+                for strength, words in indicators.items():
+                    for word in words:
+                        if word in justification_lower:
+                            if strength == "strong":
+                                coherence_score += 15
+                            elif strength == "medium":
+                                coherence_score += 8
+                            else:  # weak
+                                coherence_score += 3
+                            break  # Un mot trouvé par force suffit
                 
-                confidence = min(100, base_confidence + coherence_bonus)
+                # 5. Facteur de certitude basé sur la longueur et détail de la justification
+                justification_confidence = min(20, len(justification.split()) / 5)  # +1% par 5 mots
+                
+                # 6. Diversité des sources (pénalité si peu de sources différentes)
+                unique_sources = len(set(meta.get('subject', '') for meta in self.search_results["metadatas"][0]))
+                diversity_bonus = min(10, unique_sources * 2)  # +2% par source unique
+                
+                # 7. Calcul final avec pondérations
+                confidence = min(100, 
+                    base_confidence * 0.6 +           # 60% base similarity
+                    coherence_score * 0.3 +           # 30% cohérence LLM  
+                    justification_confidence * 0.05 + # 5% qualité justification
+                    diversity_bonus * 0.05            # 5% diversité sources
+                )
+                
+                # 8. Ajustement final basé sur le nombre de résultats
+                results_count = len(true_labels)
+                if results_count < 3:
+                    confidence *= 0.8  # Réduction si peu de résultats
+                elif results_count > 15:
+                    confidence = min(100, confidence * 1.1)  # Léger boost si beaucoup de résultats
+                    
             else:
-                confidence = 50.0
+                # Confidence par défaut avec variation aléatoire
+                import random
+                confidence = 45 + random.randint(0, 10)  # Entre 45% et 55%
         else:
-            confidence = 50.0
+            import random
+            confidence = 40 + random.randint(0, 20)  # Entre 40% et 60% si pas de résultats
 
         return predicted_label, round(confidence, 2), justification

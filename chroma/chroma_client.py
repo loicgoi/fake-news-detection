@@ -1,3 +1,5 @@
+import os
+
 import chromadb
 from chromadb.utils import embedding_functions
 
@@ -13,8 +15,12 @@ class ChromaClient(metaclass=SingletonMeta):
         self, db_path: str = "./chroma_db/", model_name: str = "all-minilm:latest"
     ):
         self.client = chromadb.PersistentClient(path=db_path)
+
+        ollama_url = os.getenv("OLLAMA_API_BASE", "http://ollama:11434")
+
         self.embedding_function = embedding_functions.OllamaEmbeddingFunction(
-            model_name=model_name
+            model_name=model_name,
+            url=ollama_url
         )
 
     def get_client(self):
