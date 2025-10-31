@@ -3,3 +3,5 @@ notebooks/
 chroma_db/
 # Fichiers cache
 *.pyc
+.venv/
+

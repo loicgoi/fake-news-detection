@@ -1,3 +1,4 @@
+import os
 import ollama
 
 class PromptBuilder():
@@ -11,6 +12,8 @@ class PromptBuilder():
         self.article_text = article_text
         self.model_embedding = model_embedding
         self.model_llm = model_llm
+
+        ollama.api_base = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
     
     def build_context_for_prompt(self, search_results):
         # Rechercher les articles les plus similaires dans la base vectorielle
@@ -57,7 +60,12 @@ class PromptBuilder():
         # Appele le modèle de langage pour obtenir la classification
         response = ollama.generate(
             model=self.model_llm,
-            prompt=prompt
+            prompt=prompt,
+            options={
+                'temperature': 0.1,
+                'num_predict': 100,
+                'timeout': 120000
+            }
         )
 
         # Retourne la réponse

@@ -1,14 +1,11 @@
 import re
-from collections import Counter
-
-import pandas as pd
 from chroma.chroma_manager import ChromaManager
 
 from .prompt_builder import PromptBuilder
 
 
 class RAGSystem:
-    def __init__(self, collection_name="news", model_lm="phi3:3.8b"):
+    def __init__(self, collection_name="news", model_lm="llama3.2:1b"):
         self.chroma_manager = ChromaManager(collection_name)
         self.embedding_functions = self.chroma_manager.embed_function
 
