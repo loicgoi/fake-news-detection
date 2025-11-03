@@ -1,32 +1,24 @@
-# ------ NE TOUCHE À RIEN D’AUTRE ------
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM python:3.12-slim-trixie
+
+ENV PATH="/root/.local/bin/:$PATH" \
+    STREAMLIT_PORT=8501
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+
+COPY --from=ghcr.io/astral-sh/uv:0.9.6 /uv /uvx /bin/
 
 WORKDIR /app
 
-# Dépendances système
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --frozen
 
-# Variables uv
-ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
-
-# Copier les deps
-COPY pyproject.toml uv.lock ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
-
-# Copier le code
 COPY . .
 
-# Installer le projet
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+RUN useradd -m appuser && chown -R appuser:appuser /app
+USER appuser
 
-# Créer dossiers persistants
-RUN mkdir -p /app/chroma_db /app/data
+EXPOSE ${STREAMLIT_PORT}
 
-# VARIABLE ESSENTIELLE
-ENV OLLAMA_API_BASE=http://ollama:11434
-ENV PYTHONPATH=/app
-EXPOSE 8501
-
-CMD ["/bin/bash", "-c", "source /app/.venv/bin/activate && streamlit run app/app.py --server.port=8501 --server.address=0.0.0.0"]
+CMD uv run python -m streamlit run app/app.py \
+    --server.port=${STREAMLIT_PORT} \
+    --server.address=0.0.0.0

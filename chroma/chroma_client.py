@@ -93,6 +93,32 @@ class ChromaClient(metaclass=SingletonMeta):
         """
         Retourne la fonction d'embedding
         """
+        if self.embedding_function is None:
+            max_retries = 5
+            retry_delay = 2
+
+            for attempt in range(max_retries):
+                try:
+                    self.embedding_function = (
+                        embedding_functions.OllamaEmbeddingFunction(
+                            model_name=self.model_name,
+                            url=os.getenv("OLLAMA_HOST", "http://ollama:11434"),
+                        )
+                    )
+                    embed_test = self.embedding_function(["test"])
+                    print(f"connexion à Ollama réussie -> {embed_test}")
+                    break
+                except Exception as e:
+                    if attempt < max_retries - 1:
+                        print(
+                            f"tentative {attempt + 1}/{max_retries} échouée, nouvelle tentative dans {retry_delay}s..."
+                        )
+                        time.sleep(retry_delay)
+                    else:
+                        raise Exception(
+                            f"impossible de se connecter à Ollama après {max_retries} tentatives: {e}"
+                        )
+
         return self.embedding_function
 
     def get_or_create_collection(self, name: str):

@@ -9,8 +9,23 @@ from chroma.chroma_query import query_collection
 class ChromaManager:
     def __init__(self, collection_name):
         self.client = ChromaClient()
-        self.embed_function = self.client.get_embedding_function()
-        self.collection = self.client.get_or_create_collection(name=collection_name)
+        self.collection_name = collection_name
+        self._embed_function = None
+        self._collection = None
+
+    @property
+    def embed_function(self):
+        if self._embed_function is None:
+            self._embed_function = self.client.get_embedding_function()
+        return self._embed_function
+
+    @property
+    def collection(self):
+        if self._collection is None:
+            self._collection = self.client.get_or_create_collection(
+                name=self.collection_name
+            )
+        return self._collection
 
     @staticmethod
     def normalize_L2(vector):

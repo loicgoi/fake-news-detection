@@ -1,11 +1,11 @@
 import os
 import ollama
 
-class PromptBuilder():
 
+class PromptBuilder:
     """
-        Prend un texte d'article et retourne une prédiction True/Fake
-        en utilisant RAG (Recherche + LLM via Ollama).
+    Prend un texte d'article et retourne une prédiction True/Fake
+    en utilisant RAG (Recherche + LLM via Ollama).
     """
 
     def __init__(self, article_text, model_embedding, model_llm):
@@ -63,7 +63,7 @@ class PromptBuilder():
         Justification: in 2 sentences maximum, based on the similarities or tone of the article.
         """
         return prompt
-    
+
     def predict_label(self, prompt):
         try:
             import time
