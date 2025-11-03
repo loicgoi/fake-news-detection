@@ -83,6 +83,54 @@ class ChromaClient(metaclass=SingletonMeta):
         
         raise Exception(f"Impossible de se connecter à Ollama après {max_retries} tentatives")
 
+    def _wait_for_ollama(self, base_url: str, model_name: str, max_retries: int = 10):
+        """
+        Attend qu'Ollama soit prêt et que le modèle soit chargé.
+        """
+        print(f"Vérification de la disponibilité d'Ollama sur {base_url}...")
+        
+        for attempt in range(max_retries):
+            try:
+                # Test 1: Vérifier qu'Ollama répond
+                response = requests.get(f"{base_url}/api/tags", timeout=5)
+                
+                if response.status_code == 200:
+                    models = response.json().get("models", [])
+                    model_names = [m.get("name", "") for m in models]
+                    
+                    # Test 2: Vérifier que le modèle est disponible
+                    if any(model_name in name for name in model_names):
+                        print(f"Ollama prêt avec le modèle {model_name}")
+                        
+                        # Test 3: Vérifier que l'embedding fonctionne
+                        test_payload = {
+                            "model": model_name,
+                            "input": "test"
+                        }
+                        embed_response = requests.post(
+                            f"{base_url}/api/embed", 
+                            json=test_payload, 
+                            timeout=10
+                        )
+                        
+                        if embed_response.status_code == 200:
+                            print(f"Embeddings fonctionnels")
+                            return
+                        else:
+                            print(f"Embeddings pas encore prêts (status {embed_response.status_code})")
+                    else:
+                        print(f"Modèle {model_name} pas encore disponible. Modèles: {model_names}")
+                else:
+                    print(f"Ollama répond avec status {response.status_code}")
+                    
+            except requests.exceptions.RequestException as e:
+                print(f"Tentative {attempt + 1}/{max_retries}: Ollama pas encore accessible ({e})")
+            
+            if attempt < max_retries - 1:
+                time.sleep(5)
+        
+        raise Exception(f"Impossible de se connecter à Ollama après {max_retries} tentatives")
+
     def get_client(self):
         """
         Retourne le client Chroma
