@@ -4,7 +4,7 @@ from collections import Counter
 import pandas as pd
 from chroma.chroma_manager import ChromaManager
 
-from .prompt_builder import PromptBuilder
+from prompt.prompt_builder import PromptBuilder
 
 
 class RAGSystem:

@@ -1,7 +1,8 @@
 FROM python:3.12-slim-trixie
 
 ENV PATH="/root/.local/bin/:$PATH" \
-    STREAMLIT_PORT=8501
+    STREAMLIT_PORT=8501 \
+    PYTHONPATH=/app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
 
