@@ -23,3 +23,6 @@ tests/
 .python-version
 .gitignore
 README.MD
+.venv
+chroma_db
+data/*.csv

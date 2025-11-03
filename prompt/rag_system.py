@@ -1,3 +1,4 @@
+import os
 import re
 from chroma.chroma_manager import ChromaManager
 
@@ -6,6 +7,8 @@ from .prompt_builder import PromptBuilder
 
 class RAGSystem:
     def __init__(self, collection_name="news", model_lm="llama3.2:1b"):
+        os.environ["OLLAMA_API_BASE"] = "http://ollama:11434"
+
         self.chroma_manager = ChromaManager(collection_name)
         self.embedding_functions = self.chroma_manager.embed_function
 
@@ -40,7 +43,9 @@ class RAGSystem:
             return self.response
 
         except Exception as e:
-            return f"Erreur lors de l'analyse: {e}"
+            self.response = f"Erreur : {e}"
+            return self.response
+
 
     def evaluation_rag(self):
         """
@@ -89,81 +94,26 @@ class RAGSystem:
             true_labels = [meta['label'] for meta in self.search_results["metadatas"][0]]
             
             if true_labels:
-                # 1. Similarité sémantique
-                label_matches = 0
-                total_similarity = 0
+                # Pourcentage simple d'articles similaires qui ont le MÊME label
+                # Cela représente directement la probabilité que la prédiction soit correcte
+                matches = sum(1 for label in true_labels if label.lower() == predicted_label.lower())
+                confidence = (matches / len(true_labels)) * 100
                 
-                for label in true_labels:
-                    if label.lower() == predicted_label.lower():
-                        label_matches += 1
-                        total_similarity += 1.0
-                    elif (label.lower() == "true" and predicted_label.lower() == "fake") or \
-                        (label.lower() == "fake" and predicted_label.lower() == "true"):
-                        total_similarity += 0.0  # Opposition totale
-                    else:
-                        total_similarity += 0.5  # Incertain ou autres labels
-                
-                # 2. Base confidence avec pondération
-                base_confidence = (total_similarity / len(true_labels)) * 100
-                
-                # 3. Cohérence LLM avec scores variables
-                llm_confidence_indicators = {
-                    "True": {
-                        "strong": ["verified", "credible", "official", "factual", "reliable", "trusted"],
-                        "medium": ["consistent", "plausible", "reasonable", "logical"],
-                        "weak": ["likely", "possible", "probable"]
-                    },
-                    "Fake": {
-                        "strong": ["sensational", "conspiracy", "fabricated", "misleading", "deceptive"],
-                        "medium": ["exaggerated", "unverified", "questionable", "dubious"], 
-                        "weak": ["possibly false", "potentially misleading", "unconfirmed"]
-                    }
-                }
-                
-                # 4. Score de cohérence nuancé
+                # Ajustement minimal basé sur la qualité de la justification
                 justification_lower = justification.lower()
-                coherence_score = 0
                 
-                indicators = llm_confidence_indicators.get(predicted_label, {})
-                for strength, words in indicators.items():
-                    for word in words:
-                        if word in justification_lower:
-                            if strength == "strong":
-                                coherence_score += 15
-                            elif strength == "medium":
-                                coherence_score += 8
-                            else:  # weak
-                                coherence_score += 3
-                            break  # Un mot trouvé par force suffit
+                # Bonus si la justification est détaillée et cohérente
+                if len(justification.split()) > 20:  # Justification détaillée
+                    confidence = min(95, confidence + 5)
                 
-                # 5. Facteur de certitude basé sur la longueur et détail de la justification
-                justification_confidence = min(20, len(justification.split()) / 5)  # +1% par 5 mots
-                
-                # 6. Diversité des sources (pénalité si peu de sources différentes)
-                unique_sources = len(set(meta.get('subject', '') for meta in self.search_results["metadatas"][0]))
-                diversity_bonus = min(10, unique_sources * 2)  # +2% par source unique
-                
-                # 7. Calcul final avec pondérations
-                confidence = min(100, 
-                    base_confidence * 0.6 +           # 60% base similarity
-                    coherence_score * 0.3 +           # 30% cohérence LLM  
-                    justification_confidence * 0.05 + # 5% qualité justification
-                    diversity_bonus * 0.05            # 5% diversité sources
-                )
-                
-                # 8. Ajustement final basé sur le nombre de résultats
-                results_count = len(true_labels)
-                if results_count < 3:
-                    confidence *= 0.8  # Réduction si peu de résultats
-                elif results_count > 15:
-                    confidence = min(100, confidence * 1.1)  # Léger boost si beaucoup de résultats
+                # Bonus pour des mots-clés de qualité dans la justification
+                quality_indicators = ["verified", "credible", "official", "factual", "sources", "evidence"]
+                if any(indicator in justification_lower for indicator in quality_indicators):
+                    confidence = min(95, confidence + 5)
                     
             else:
-                # Confidence par défaut avec variation aléatoire
-                import random
-                confidence = 45 + random.randint(0, 10)  # Entre 45% et 55%
+                confidence = 50.0  # Valeur neutre si pas de labels
         else:
-            import random
-            confidence = 40 + random.randint(0, 20)  # Entre 40% et 60% si pas de résultats
-
+            confidence = 50.0  # Valeur neutre si pas de résultats
+        
         return predicted_label, round(confidence, 2), justification

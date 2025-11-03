@@ -13,7 +13,8 @@ class PromptBuilder():
         self.model_embedding = model_embedding
         self.model_llm = model_llm
 
-        ollama.api_base = os.getenv("OLLAMA_API_BASE", "http://localhost:11434")
+        ollama_host = os.getenv("OLLAMA_API_BASE", "http://ollama:11434")
+        ollama.api_base = ollama_host
     
     def build_context_for_prompt(self, search_results):
         # Rechercher les articles les plus similaires dans la base vectorielle
@@ -24,11 +25,18 @@ class PromptBuilder():
         similar_meta = search_results["metadatas"][0]
 
         # Construire le contexte à donner au LLM
-        context = "\n\n".join([
-            f"- Sujet : {meta['subject']}\n  Date : {meta['date']}\n  Label : {meta['label']}\n  Texte : {doc}..."
-            for doc, meta in zip(similar_docs, similar_meta)
-        ])
-        return context
+        context_parts = []
+        for doc, meta in zip(similar_docs, similar_meta):
+            # Gérer les documents vides ou None
+            doc_preview = str(doc)[:200] + "..." if doc else "[Document vide]"
+            context_parts.append(
+                f"- Sujet : {meta.get('subject', 'N/A')}\n"
+                f"  Date : {meta.get('date', 'N/A')}\n"
+                f"  Label : {meta.get('label', 'N/A')}\n"
+                f"  Texte : {doc_preview}"
+            )
+        
+        return "\n\n".join(context_parts) if context_parts else "Aucun contexte disponible."
     
     def build_prompt(self, context):
         # Construire le prompt complet pour le LLM
@@ -57,16 +65,21 @@ class PromptBuilder():
         return prompt
     
     def predict_label(self, prompt):
-        # Appele le modèle de langage pour obtenir la classification
-        response = ollama.generate(
-            model=self.model_llm,
-            prompt=prompt,
-            options={
-                'temperature': 0.1,
-                'num_predict': 100,
-                'timeout': 120000
-            }
-        )
-
-        # Retourne la réponse
-        return response["response"]
+        try:
+            import time
+            time.sleep(5)
+            response = ollama.generate(
+                model=self.model_llm,
+                prompt=prompt,
+                options={
+                    'temperature': 0.1,
+                    'num_predict': 100,
+                    'timeout': 300000
+                }
+            )
+            if "response" in response:
+                return response["response"]
+            else:
+                return f"Erreur : clé 'response' manquante dans la réponse Ollama : {response}"
+        except Exception as e:
+            return f"Erreur pendant l'appel Ollama : {e}"

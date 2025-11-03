@@ -11,8 +11,8 @@ from prompt.rag_system import RAGSystem
 class Pipeline:
     def __init__(self):
         self.handlers = {
-            "fake_news_csv": DataHandler("./data/Fake.csv"),
-            "true_news_csv": DataHandler("./data/True.csv"),
+            "fake_news_csv": DataHandler("/app/data/Fake.csv"),
+            "true_news_csv": DataHandler("/app/data/True.csv"),
         }
         self._is_loaded = False
         self._is_clean = False
@@ -112,9 +112,11 @@ class Pipeline:
         wish_to_continue = True
         while wish_to_continue:
             selection = questionary.select(
-                "What do you want to do?"
-                if is_first_time
-                else "And now, what do you want to do?",
+                (
+                    "What do you want to do?"
+                    if is_first_time
+                    else "And now, what do you want to do?"
+                ),
                 [
                     "EXPLORATION -> Quickly load data from CSV files to take a look at the data exploration",
                     "INSERTION -> Load data from CSV files, clean it, process it and insert it into a chromaDB (might take a while)",

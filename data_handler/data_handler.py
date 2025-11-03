@@ -1,19 +1,35 @@
 from typing import final
-
+import os
 import pandas as pd
-
 from data_handler.text_cleaning import text_cleaning
 
 
 @final
 class DataHandler:
     def __init__(self, csv_path: str):
-        self.csv_path = csv_path
+        self.original_csv_path = csv_path
+        
+        # Si le chemin Docker n'existe pas, essayer le chemin local
+        if csv_path.startswith('/app/') and not os.path.exists(csv_path):
+            # Convertir /app/data/... en ./data/...
+            local_path = csv_path.replace('/app/', './')
+            if os.path.exists(local_path):
+                self.csv_path = local_path
+                print(f"✓ Using local path: {local_path}")
+            else:
+                self.csv_path = csv_path
+        else:
+            self.csv_path = csv_path
 
     def load(self):
         print(f"· LOADING CSV DATA FROM `{self.csv_path}` INTO A DATAFRAME")
+        
+        # Vérifier que le fichier existe
+        if not os.path.exists(self.csv_path):
+            raise FileNotFoundError(f"CSV file not found: {self.csv_path}")
+            
         self.df: pd.DataFrame = pd.read_csv(self.csv_path)
-        print(f"· DATAFRAME PREVIEW:\n{self.df}")
+        print(f"· DATAFRAME PREVIEW:\n{self.df.head()}")
         return self
 
     @staticmethod

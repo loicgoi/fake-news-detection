@@ -34,13 +34,17 @@ class ChromaManager:
         Ajoute un DataFrame complet dans la collection Chroma avec chunks + embeddings.
         """
 
+        # Vérifier que la collection est prête
+        if not hasattr(self, 'collection') or self.collection is None:
+            raise Exception("Collection ChromaDB non initialisée")
+
         ids, documents, metadatas = [], [], []
         total_rows = len(df)
         rows_handled = 0
         print(f"· {rows_handled}/{total_rows} rows have been handled")
         for row in df.itertuples():
             chunks = chunk_text(
-                getattr(row, "text"),
+                row.text,
                 step=step,
                 overlap=overlap,
             )
@@ -50,10 +54,10 @@ class ChromaManager:
                 documents.append(chunk)
                 metadatas.append(
                     {
-                        "title": str(getattr(row, "title")),
-                        "subject": str(getattr(row, "subject")),
-                        "date": str(getattr(row, "date")),
-                        "label": str(getattr(row, "label")),
+                        "title": str(row.title),
+                        "subject": str(row.subject),
+                        "date": str(row.date),
+                        "label": str(row.label),
                         "chunk_index": i,
                     }
                 )

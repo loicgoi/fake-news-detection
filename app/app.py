@@ -73,31 +73,28 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("Vérification de la véracité de la news..."):
             try:
-                # Analyse normale
                 result = st.session_state.rag_system.analyze_article(user_input)
-                predicted_label, confidence, justification = st.session_state.rag_system.evaluation_rag()
-                
-                # Construction du message final
-                final_message = f"""
-                **ANALYSIS RESULT**
+                if "Erreur" in result:
+                    st.error(result)
+                    st.session_state.messages.append({"role": "assistant", "content": result})
+                else:
+                    predicted_label, confidence, justification = st.session_state.rag_system.evaluation_rag()
+                    final_message = f"""
+            **ANALYSIS RESULT**
 
-                **Label :** {predicted_label}  
-                **Trust :** `{confidence}%`  
+            **Label :** {predicted_label}  
+            **Trust :** `{confidence}%`  
 
-                **Justification :**
-                {justification}
+            **Justification :**
+            {justification}
 
-                ---
-                *Analysis based on comparison with {len(st.session_state.rag_system.search_results["documents"][0])} verified articles from the database.*
-                """
-                
-                st.markdown(final_message, unsafe_allow_html=True)
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": final_message}
-                )
+            ---
+            *Analysis based on comparison with {len(st.session_state.rag_system.search_results["documents"][0])} verified articles from the database.*
+                    """
+                    st.markdown(final_message, unsafe_allow_html=True)
+                    st.session_state.messages.append({"role": "assistant", "content": final_message})
+
             except Exception as e:
                 error_msg = f"Erreur pendant l'analyse : {e}"
                 st.error(error_msg)
-                st.session_state.messages.append(
-                    {"role": "assistant", "content": error_msg}
-                )
+                st.session_state.messages.append({"role": "assistant", "content": error_msg})
